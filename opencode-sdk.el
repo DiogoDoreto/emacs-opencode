@@ -106,19 +106,5 @@ session alists on success and ERROR is a string on failure."
                                '())
                   nil))))))
 
-(defun opencode-sdk-session-create (directory callback)
-  "Asynchronously create a new session via POST /session.
-
-DIRECTORY is a string path for the new session.
-CALLBACK is called with (SESSION ERROR) where SESSION is the created
-session alist on success and ERROR is a string on failure."
-  (let ((params (list (list "directory" (opencode-sdk--normalize-directory directory)))))
-    (opencode-sdk--request
-     'post "/session" params nil
-     (lambda (result error)
-       (if error
-           (funcall callback nil error)
-         (funcall callback result nil))))))
-
 (provide 'opencode-sdk)
 ;;; opencode-sdk.el ends here

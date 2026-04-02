@@ -43,7 +43,7 @@ Read by the Sessions group `:setup-children' function at display time.")
 (defvar opencode--menu-directory nil
   "Project root directory string populated by `opencode--show-menu' before display.
 Read by the Actions group `:setup-children' function to pass to
-`opencode-sdk-session-create'.")
+`opencode--session-url'.")
 
 ;;; Time Helpers
 
@@ -70,13 +70,22 @@ Bucketing rules:
 
 ;;; URL Helpers
 
-(defun opencode--session-url (directory session-id)
-  "Return the browser URL for SESSION-ID under DIRECTORY.
+(defun opencode--session-url (directory &optional session-id)
+  "Return the browser URL for DIRECTORY, optionally scoped to SESSION-ID.
 The first path segment is the base64 encoding of DIRECTORY
 (without trailing newline), which is how OpenCode identifies
-the project in its web UI."
+the project in its web UI.
+
+When SESSION-ID is non-nil, returns the URL for that specific session:
+  <base-url>/<b64-dir>/session/<session-id>
+
+When SESSION-ID is nil, returns the new-session URL (the OpenCode web UI
+creates a new session automatically when navigated to this URL):
+  <base-url>/<b64-dir>/session"
   (let ((encoded-dir (base64-encode-string directory t)))
-    (concat opencode-sdk-base-url "/" encoded-dir "/session/" session-id)))
+    (if session-id
+        (concat opencode-sdk-base-url "/" encoded-dir "/session/" session-id)
+      (concat opencode-sdk-base-url "/" encoded-dir "/session"))))
 
 ;;; Transient Menu Builder
 
@@ -127,14 +136,7 @@ Returns a list spec suitable for `transient-parse-suffix'."
          (list "n" "New session"
                (lambda ()
                  (interactive)
-                 (opencode-sdk-session-create
-                  directory
-                  (lambda (session error)
-                    (if error
-                        (message "OpenCode: failed to create session: %s" error)
-                      (browse-url
-                       (opencode--session-url directory
-                                              (alist-get 'id session))))))))))))])
+                 (browse-url (opencode--session-url directory)))))))])
 
 (defun opencode--show-menu (sessions directory)
   "Display the OpenCode transient menu with SESSIONS and DIRECTORY.
