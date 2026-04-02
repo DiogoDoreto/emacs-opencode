@@ -37,7 +37,7 @@ Uses `project-current' to detect the project.  Falls back to
 
 (defvar opencode--menu-sessions nil
   "List of session alists populated by `opencode--show-menu' before display.
-Each alist has at least `id', `projectID', and `title' entries.
+Each alist has at least `id', `directory', and `title' entries.
 Read by the Sessions group `:setup-children' function at display time.")
 
 (defvar opencode--menu-directory nil
@@ -45,23 +45,33 @@ Read by the Sessions group `:setup-children' function at display time.")
 Read by the Actions group `:setup-children' function to pass to
 `opencode-sdk-session-create'.")
 
+;;; URL Helpers
+
+(defun opencode--session-url (directory session-id)
+  "Return the browser URL for SESSION-ID under DIRECTORY.
+The first path segment is the base64 encoding of DIRECTORY
+(without trailing newline), which is how OpenCode identifies
+the project in its web UI."
+  (let ((encoded-dir (base64-encode-string directory t)))
+    (concat opencode-sdk-base-url "/" encoded-dir "/session/" session-id)))
+
 ;;; Transient Menu Builder
 
 (defun opencode--build-session-suffix (key session)
   "Build a transient suffix spec for SESSION bound to KEY.
 KEY is a string such as \"1\".  SESSION is an alist with at least
-`id', `projectID', and `title' entries.  The suffix action opens
+`id', `directory', and `title' entries.  The suffix action opens
 the session URL in the browser.
 
-Signals an error if SESSION is missing `id' or `projectID'.
+Signals an error if SESSION is missing `id' or `directory'.
 
 Returns a list spec suitable for `transient-parse-suffix'."
-  (let* ((session-id (alist-get 'id session))
-         (project-id (alist-get 'projectID session)))
-    (unless (and session-id project-id)
+  (let ((session-id  (alist-get 'id session))
+        (directory   (alist-get 'directory session)))
+    (unless (and session-id directory)
       (error "OpenCode: malformed session alist: %S" session))
     (let* ((title (or (alist-get 'title session) (concat "Session " key)))
-           (url (concat opencode-sdk-base-url "/" project-id "/session/" session-id)))
+           (url (opencode--session-url directory session-id)))
       (list key title
             (lambda ()
               (interactive)
@@ -94,12 +104,9 @@ Returns a list spec suitable for `transient-parse-suffix'."
                   (lambda (session error)
                     (if error
                         (message "OpenCode: failed to create session: %s" error)
-                      (let* ((session-id (alist-get 'id session))
-                             (project-id (alist-get 'projectID session))
-                             (url (concat opencode-sdk-base-url
-                                          "/" project-id
-                                          "/session/" session-id)))
-                        (browse-url url)))))))))))])
+                      (browse-url
+                       (opencode--session-url directory
+                                              (alist-get 'id session))))))))))))])
 
 (defun opencode--show-menu (sessions directory)
   "Display the OpenCode transient menu with SESSIONS and DIRECTORY.
