@@ -59,16 +59,10 @@ alist on success and ERROR is a string on failure."
         (plz method url
           :headers headers
           :body encoded-body
-          :as 'string
-          :then (lambda (response)
-                  (let ((result (condition-case parse-err
-                                    (json-parse-string response :object-type 'alist)
-                                  (error
-                                   (when callback
-                                     (funcall callback nil (format "JSON parse error: %s" (error-message-string parse-err))))
-                                   nil))))
-                    (when (and callback result)
-                      (funcall callback result nil))))
+          :as #'json-read
+          :then (lambda (result)
+                  (when callback
+                    (funcall callback result nil)))
           :else (lambda (err)
                   (when callback
                     (funcall callback nil (format "Request error: %s" (error-message-string err))))))
@@ -81,11 +75,12 @@ alist on success and ERROR is a string on failure."
 (defun opencode-sdk--normalize-directory (directory)
   "Return DIRECTORY with any trailing slash removed.
 
-Emacs functions such as `project-root' and `default-directory' return
-directory paths with a trailing slash by convention (e.g. \"/home/user/project/\").
-The OpenCode API expects paths without a trailing slash (e.g. \"/home/user/project\").
-This helper adapts Emacs-convention paths to the API's expectation so that callers
-may pass paths from standard Emacs sources without manual adjustment."
+Emacs functions such as `project-root' and `default-directory' return directory
+paths with a trailing slash by convention (e.g. \"/home/user/project/\").  The
+OpenCode API expects paths without a trailing slash (e.g.
+\"/home/user/project\").  This helper adapts Emacs-convention paths to the API's
+expectation so that callers may pass paths from standard Emacs sources without
+manual adjustment."
   (directory-file-name directory))
 
 ;;; Session API
