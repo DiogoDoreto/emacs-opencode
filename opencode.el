@@ -45,6 +45,29 @@ Read by the Sessions group `:setup-children' function at display time.")
 Read by the Actions group `:setup-children' function to pass to
 `opencode-sdk-session-create'.")
 
+;;; Time Helpers
+
+(defun opencode--relative-time (ms-epoch)
+  "Return a compact relative time string for MS-EPOCH (millisecond epoch integer).
+Returns nil when MS-EPOCH is nil.
+
+Bucketing rules:
+  Delta < 60 s      → \"just now\"
+  Delta < 3600 s    → \"Xm ago\"
+  Delta < 86400 s   → \"Xh ago\"
+  Delta < 604800 s  → \"Xd ago\"
+  Delta ≥ 604800 s  → \"Xw ago\""
+  (when ms-epoch
+    (let* ((seconds-epoch (/ ms-epoch 1000))
+           (then (seconds-to-time seconds-epoch))
+           (delta (float-time (time-subtract (current-time) then))))
+      (cond
+       ((< delta 60)     "just now")
+       ((< delta 3600)   (format "%dm ago" (floor (/ delta 60))))
+       ((< delta 86400)  (format "%dh ago" (floor (/ delta 3600))))
+       ((< delta 604800) (format "%dd ago" (floor (/ delta 86400))))
+       (t                (format "%dw ago" (floor (/ delta 604800))))))))
+
 ;;; URL Helpers
 
 (defun opencode--session-url (directory session-id)
@@ -71,8 +94,13 @@ Returns a list spec suitable for `transient-parse-suffix'."
     (unless (and session-id directory)
       (error "OpenCode: malformed session alist: %S" session))
     (let* ((title (or (alist-get 'title session) (concat "Session " key)))
+           (ms-updated (alist-get 'updated (alist-get 'time session)))
+           (rel-time (opencode--relative-time ms-updated))
+           (label (if rel-time
+                       (format "%s %s" title (propertize (format "(%s)" rel-time) 'face 'shadow))
+                     title))
            (url (opencode--session-url directory session-id)))
-      (list key title
+      (list key label
             (lambda ()
               (interactive)
               (browse-url url))))))
